@@ -1,6 +1,6 @@
 import ItemList from './ItemList';
 
-const Contetn = ({items, handleChecke, handleDelete}) => {
+const Content = ({items, handleChecke, handleDelete}) => {
 
   return (
     <main>
@@ -17,4 +17,4 @@ const Contetn = ({items, handleChecke, handleDelete}) => {
   )
 }
 
-export default Contetn
+export default Content

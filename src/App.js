@@ -2,47 +2,95 @@ import './App.css';
 import Header from './Header';
 import SearchItem from './SearchItem';
 import AddItem from './AddItem';
-import Content from './Content'; // Correct spelling
+import Content from './Content';
 import Footer from './Footer';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import apiRequest from './apiRequest';
+
 
 function App() {
-  const [items, setItems] = useState([
-    { id: 1, checked: true, item: 'one half pound of cocoa covered Almonds Unsalted' },
-    { id: 2, checked: false, item: 'Item 2' },
-    { id: 3, checked: false, item: 'Item 3' },
-  ]);
-
-  const [search, setSearch] = useState('')
-
+  const API_URL = 'http://localhost:3500/items';
+  const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState('');
+  const [search, setSearch] = useState('');
+  const [fetchError, setFetchError] = useState(null);
+  const [isLoading, setIsLoading]= useState(true);
+  
+  useEffect( () => {
+     const fetchItems = async()=>{
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw Error('Did not received expected data');
+        const listItems = await response.json();
+        console.log(listItems);
+        setItems(listItems);
+        setFetchError(null);
+      } catch (err) {
+        setFetchError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+     }
+     setTimeout(()=>{
+        (async ()=> await fetchItems()) ();
+     }, 1000)
+  }, [])
 
-  const addItem = (item) => {
+  const addItem = async(item) => {
     const id = items.length ? items[items.length - 1].id + 1 : 1;
-    const myNewItem = { id, checked: false, item }; // use 'item' not 'itme'
+    const myNewItem = { id, checked: false, item }; 
     const listItems = [...items, myNewItem];
     setItems(listItems);
-    localStorage.setItem('shoppinglist', JSON.stringify(listItems)); // fix key
+
+    const  postOptions={
+      method: 'post',
+      headers: {
+        'content-Type':'application/json'
+      },
+      body: JSON.stringify(myNewItem)
+    }
+    const result = await apiRequest(API_URL, postOptions);
+    if (result) setFetchError(result);
   };
 
-  const handleChecke = (id) => {
+  const handleChecke = async(id) => {
     const listItems = items.map((item) =>
       item.id === id ? { ...item, checked: !item.checked } : item
     );
     setItems(listItems);
-    localStorage.setItem('shoppinglist', JSON.stringify(listItems));
+
+    const myItem = listItems.filter((item)=>item.id===id);
+    const updateOptions = {
+      method: 'PATCH',
+      headers:{
+
+        'content-Type': 'application/json'
+      },
+      body: JSON.stringify({checked:myItem[0].checked})
+    };
+
+    const reqUrl = `${API_URL}/${id}`;
+    const result = await apiRequest(reqUrl, updateOptions);
+    if (result) setFetchError(result);
+
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async(id) => {
     const listItems = items.filter((item) => item.id !== id);
     setItems(listItems);
-    localStorage.setItem('shoppinglist', JSON.stringify(listItems));
+
+    const deleteOPtions = {method: 'DELETE'};
+    const reqUrl = `${API_URL}/${id}`;
+    const result = await apiRequest(reqUrl, deleteOPtions);
+    if (result) setFetchError(result);
+
+
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!newItem) return;
-    addItem(newItem); // call addItem
+    addItem(newItem); 
     setNewItem('');
   };
 
@@ -51,7 +99,7 @@ function App() {
       <Header title="Groceries List" />
       <AddItem
         newItem={newItem}
-        setNewItem={setNewItem} // correct prop
+        setNewItem={setNewItem}
         handleSubmit={handleSubmit}
       />
       <SearchItem 
@@ -59,15 +107,19 @@ function App() {
          setSearch={setSearch}
       
       />
-      <Content
+      <main>
+        {isLoading && <p>Loading Items...</p>}
+        {fetchError && <p style={{color: "red"}}>Error: {fetchError}
+          </p>}
+      {!fetchError && !isLoading && <Content 
         items={items.filter(item =>((item.item).toLowerCase()).includes
         (search.toLowerCase()))}
         handleChecke={handleChecke}
         handleDelete={handleDelete}
-      />
+      />}
+      </main>
       <Footer length={items.length} />
     </div>
   );
 }
-
 export default App;
